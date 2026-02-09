@@ -1,7 +1,7 @@
-# Use a Node image that includes build tools
-FROM node:18-buster
+# Use the 'bullseye' version of Node - it has better compatibility for C++ builds
+FROM node:18-bullseye
 
-# Install the system libraries RobotJS and Sharp need
+# Install EVERY system dependency required for RobotJS and Screenshotting
 RUN apt-get update && apt-get install -y \
     python3 \
     make \
@@ -9,11 +9,23 @@ RUN apt-get update && apt-get install -y \
     libxtst-dev \
     libpng-dev \
     libx11-dev \
-    libxext-dev
+    libxext-dev \
+    libxi-dev \
+    xvfb \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
+# Copy package files first (better for caching)
 COPY package*.json ./
-RUN npm install
+
+# We use --build-from-source to ensure RobotJS matches the Linux environment
+RUN npm install --build-from-source
+
 COPY . .
-EXPOSE 3000
-CMD ["node", "index.js"]
+
+# Set the port Render expects
+EXPOSE 10000
+
+# xvfb-run creates a 'fake' monitor so your screenshot code doesn't crash
+CMD ["xvfb-run", "-a", "node", "index.js"]
